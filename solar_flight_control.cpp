@@ -75,6 +75,8 @@ dji_osdk_ros::SetupCameraStream setupCameraStream_;
 
 // /home/dji/DATA/dji_ws/simulation_data/test_Predosa/TEST_2/Exp_1/
 
+typedef vector <double> record_t;
+typedef vector <record_t> coo_t;
 
 struct Waypoint_GPS
 {
@@ -186,6 +188,82 @@ void load_only_two_fixed_GPS_coordinates(vector<double> lat, vector<double> lon)
   //   cout << std::setprecision(precision) << "   waypoints.GPS_fixed_waypoints_lon: " << waypoints.GPS_fixed_waypoints_lon[i] << endl;
   // }
 }
+
+// !!!!! MOdifica codice per leggere waypoints da file di testo
+istream& operator >> (istream& ins, record_t& record)
+{
+    // make sure that the returned record contains only the stuff we read now
+    record.clear();
+
+    // read the entire line into a string (a CSV record is terminated by a newline)
+    string line;
+    getline(ins, line);
+
+    // now we'll use a stringstream to separate the fields out of the line
+    stringstream ss(line);
+    string field;
+    while (getline(ss, field, ','))
+    {
+        // for each field we wish to convert it to a double
+        // (since we require that the CSV contains nothing but floating-point values)
+        stringstream fs(field);
+        float f = 0.0;  // (default value is 0.0)
+        fs >> f;
+
+
+        // add the newly-converted field to the end of the record
+        record.push_back(f);
+    }
+
+    // Now we have read a single line, converted into a list of fields, converted the fields
+    // from strings to doubles, and stored the results in the argument record, so
+    // we just return the argument stream as required for this kind of input overload function.
+    return ins;
+
+}
+
+
+// Let's likewise overload the stream input operator to read a list of CSV records.
+// This time it is a little easier, just because we only need to worry about reading
+// records, and not fields.
+istream& operator >> (istream& ins, vertices_t& data)
+{
+    // make sure that the returned data only contains the CSV data we read here
+    data.clear();
+
+    // For every record we can read from the file, append it to our resulting data
+    record_t record;
+    while (ins >> record)
+    {
+        data.push_back(record);
+
+    }
+
+    // Again, return the argument stream as required for this kind of input stream overload.
+    return ins;
+}
+
+void populate_lon_lat_vector(coo_t coordinates)
+{
+    for (int i = 0; i < coordinates.size(); i++)
+    {
+
+        waypoints.GPS_waypoints_lat.push_back(vertices[i][0]);
+        waypoints.GPS_waypoints_lat.push_back(vertices[i][2]);
+
+        waypoints.GPS_waypoints_lon.push_back(vertices[i][1]);
+        waypoints.GPS_waypoints_lon.push_back(vertices[i][3]);
+
+    }
+
+    for (int i = 0; i < waypoints.GPS_waypoints_lat.size(); i++)
+    {
+        cout << "lat: " << waypoints.GPS_waypoints_lat[i] << endl;
+        cout << "lon: " << waypoints.GPS_waypoints_lon[i] << endl;
+    }
+}
+
+
 
 void load_GPS_coordinates()
 {
@@ -3125,6 +3203,9 @@ int main(int argc, char **argv)
   // ######################################
   
 
+  //Define Coo_t vector to read waypoints from a file
+  coo_t coordinates;
+
   if (mission.use_two_single_fixed_waypoints_flag == true)
   {
     //Cast the XmlRpcValue of fixed_lat and fixed_lon to double value 
@@ -3145,14 +3226,21 @@ int main(int argc, char **argv)
   else
   {
     //Load GPS Coordinate from file txt
-    load_GPS_coordinates();
+    //load_GPS_coordinates();
+     
+      ifstream infile("/home/dji/DATA/dji_ws/src/waypoints.txt");
+      infile >> coordinates;
+      populate_lon_lat_vector(coordinates);
   }
 
 
-if (mission.start_autonomous_mission == true)
-{
-   load_GPS_coordinates();
-}
+  if (mission.start_autonomous_mission == true)
+  {
+      //load_GPS_coordinates();
+      ifstream infile("/home/dji/DATA/dji_ws/src/waypoints.txt");
+      infile >> coordinates;
+      populate_lon_lat_vector(coordinates);
+  }
 
 
 
